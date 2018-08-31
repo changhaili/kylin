@@ -51,7 +51,7 @@ import org.apache.hadoop.hbase.client.Append;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
@@ -92,7 +92,7 @@ import com.google.protobuf.ServiceException;
  *     <li>remove some methods for loading data, checking values ...</li>
  * </ul>
  */
-public class MockHTable implements Table {
+public class MockHTable implements HTableInterface {
     private final String tableName;
     private final List<String> columnFamilies = new ArrayList<>();
 
@@ -113,6 +113,11 @@ public class MockHTable implements Table {
 
     public void addColumnFamily(String columnFamily) {
         this.columnFamilies.add(columnFamily);
+    }
+
+    @Override
+    public byte[] getTableName() {
+        return new byte[0];
     }
 
     @Override
@@ -193,6 +198,11 @@ public class MockHTable implements Table {
     }
 
     @Override
+    public Boolean[] exists(List<Get> gets) throws IOException {
+        return new Boolean[0];
+    }
+
+    //@Override
     public boolean[] existsAll(List<Get> list) throws IOException {
         return new boolean[0];
     }
@@ -293,6 +303,11 @@ public class MockHTable implements Table {
             results.add(get(g));
         }
         return results.toArray(new Result[results.size()]);
+    }
+
+    @Override
+    public Result getRowOrBefore(byte[] row, byte[] family) throws IOException {
+        return null;
     }
 
     /**
@@ -527,7 +542,7 @@ public class MockHTable implements Table {
         return false;
     }
 
-    @Override
+    //@Override
     public boolean checkAndPut(byte[] bytes, byte[] bytes1, byte[] bytes2, CompareFilter.CompareOp compareOp, byte[] bytes3, Put put) throws IOException {
         return false;
     }
@@ -589,7 +604,7 @@ public class MockHTable implements Table {
         return false;
     }
 
-    @Override
+    //@Override
     public boolean checkAndDelete(byte[] bytes, byte[] bytes1, byte[] bytes2, CompareFilter.CompareOp compareOp, byte[] bytes3, Delete delete) throws IOException {
         return false;
     }
@@ -615,6 +630,21 @@ public class MockHTable implements Table {
         return 0;
     }
 
+    @Override
+    public long incrementColumnValue(byte[] row, byte[] family, byte[] qualifier, long amount, boolean writeToWAL) throws IOException {
+        return 0;
+    }
+
+    @Override
+    public boolean isAutoFlush() {
+        return false;
+    }
+
+    @Override
+    public void flushCommits() throws IOException {
+
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -637,6 +667,21 @@ public class MockHTable implements Table {
     @Override
     public <T extends Service, R> void coprocessorService(Class<T> service, byte[] startKey, byte[] endKey, Batch.Call<T, R> callable, Batch.Callback<R> callback) throws ServiceException, Throwable {
         throw new NotImplementedException();
+
+    }
+
+    @Override
+    public void setAutoFlush(boolean autoFlush) {
+
+    }
+
+    @Override
+    public void setAutoFlush(boolean autoFlush, boolean clearBufferOnFail) {
+
+    }
+
+    @Override
+    public void setAutoFlushTo(boolean autoFlush) {
 
     }
 
@@ -674,41 +719,4 @@ public class MockHTable implements Table {
         throw new NotImplementedException();
 
     }
-
-    public void setOperationTimeout(int operationTimeout) {
-        throw new RuntimeException(this.getClass() + " does NOT implement this method.");
-    }
-
-    public int getOperationTimeout() {
-        throw new RuntimeException(this.getClass() + " does NOT implement this method.");
-    }
-
-    /** @deprecated */
-    @Deprecated
-    public int getRpcTimeout() {
-        throw new RuntimeException(this.getClass() + " does NOT implement this method.");
-    }
-
-    /** @deprecated */
-    @Deprecated
-    public void setRpcTimeout(int rpcTimeout) {
-        throw new RuntimeException(this.getClass() + " does NOT implement this method.");
-    }
-
-    public int getWriteRpcTimeout() {
-        throw new RuntimeException(this.getClass() + " does NOT implement this method.");
-    }
-
-    public void setWriteRpcTimeout(int writeRpcTimeout) {
-        throw new RuntimeException(this.getClass() + " does NOT implement this method.");
-    }
-
-    public int getReadRpcTimeout() {
-        throw new RuntimeException(this.getClass() + " does NOT implement this method.");
-    }
-
-    public void setReadRpcTimeout(int readRpcTimeout) {
-        throw new RuntimeException(this.getClass() + " does NOT implement this method.");
-    }
-
 }

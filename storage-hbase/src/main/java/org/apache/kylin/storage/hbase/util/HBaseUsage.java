@@ -24,8 +24,8 @@ import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hbase.HTableDescriptor;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.metadata.realization.IRealizationConstants;
 import org.apache.kylin.storage.hbase.HBaseConnection;
@@ -44,8 +44,8 @@ public class HBaseUsage {
 
         // get all kylin hbase tables
         KylinConfig kylinConfig = KylinConfig.getInstanceFromEnv();
-        Connection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
-        Admin hbaseAdmin = conn.getAdmin();
+        HConnection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
+        HBaseAdmin hbaseAdmin = new HBaseAdmin(conn);
         String tableNamePrefix = kylinConfig.getHBaseTableNamePrefix();
         HTableDescriptor[] tableDescriptors = hbaseAdmin.listTables(tableNamePrefix + ".*");
         for (HTableDescriptor desc : tableDescriptors) {

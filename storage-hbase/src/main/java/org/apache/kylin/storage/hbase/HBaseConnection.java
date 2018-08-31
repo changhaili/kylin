@@ -41,9 +41,9 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HConnection;
+import org.apache.hadoop.hbase.client.HConnectionManager;
 import org.apache.hadoop.hbase.util.Threads;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.kylin.common.KylinConfig;
@@ -66,7 +66,7 @@ public class HBaseConnection {
     private static final Logger logger = LoggerFactory.getLogger(HBaseConnection.class);
 
     private static final Map<StorageURL, Configuration> configCache = new ConcurrentHashMap<StorageURL, Configuration>();
-    private static final Map<StorageURL, Connection> connPool = new ConcurrentHashMap<StorageURL, Connection>();
+    private static final Map<StorageURL, HConnection> connPool = new ConcurrentHashMap<StorageURL, HConnection>();
     private static final ThreadLocal<Configuration> configThreadLocal = new ThreadLocal<>();
 
     private static ExecutorService coprocessorPool = null;
@@ -128,13 +128,13 @@ public class HBaseConnection {
     }
     
     private static Thread closeAndRestConnPool() {
-        final List<Connection> copy = new ArrayList<>(connPool.values());
+        final List<HConnection> copy = new ArrayList<>(connPool.values());
         connPool.clear();
         
         Thread t = new Thread() {
             public void run() {
                 logger.info("Closing HBase connections...");
-                for (Connection conn : copy) {
+                for (HConnection conn : copy) {
                     try {
                         conn.close();
                     } catch (Exception e) {
@@ -241,7 +241,7 @@ public class HBaseConnection {
 
     // returned Connection can be shared by multiple threads and does not require close()
     @SuppressWarnings("resource")
-    public static Connection get(StorageURL url) {
+    public static HConnection get(StorageURL url) {
         // find configuration
         Configuration conf = configCache.get(url);
         if (conf == null) {
@@ -249,13 +249,13 @@ public class HBaseConnection {
             configCache.put(url, conf);
         }
 
-        Connection connection = connPool.get(url);
+        HConnection connection = connPool.get(url);
         try {
             while (true) {
                 // I don't use DCL since recreate a connection is not a big issue.
                 if (connection == null || connection.isClosed()) {
                     logger.info("connection is null or closed, creating a new one");
-                    connection = ConnectionFactory.createConnection(conf);
+                    connection = HConnectionManager.createConnection(conf);
                     connPool.put(url, connection);
                 }
 
@@ -274,11 +274,14 @@ public class HBaseConnection {
         return connection;
     }
 
-    public static boolean tableExists(Connection conn, String tableName) throws IOException {
-        Admin hbase = conn.getAdmin();
+    public static boolean tableExists(HConnection conn, String tableName) throws IOException {
+        HBaseAdmin hbase = new HBaseAdmin(conn);
         try {
             return hbase.tableExists(TableName.valueOf(tableName));
-        } finally {
+        } catch (IOException ex){
+            ex.printStackTrace();
+            throw  ex;
+        }finally {
             hbase.close();
         }
     }
@@ -295,8 +298,8 @@ public class HBaseConnection {
         deleteTable(HBaseConnection.get(hbaseUrl), tableName);
     }
 
-    public static void createHTableIfNeeded(Connection conn, String table, String... families) throws IOException {
-        Admin admin = conn.getAdmin();
+    public static void createHTableIfNeeded(HConnection conn, String table, String... families) throws IOException {
+        HBaseAdmin admin = new HBaseAdmin(conn);
         TableName tableName = TableName.valueOf(table);
         DistributedLock lock = null;
         String lockPath = getLockPath(table);
@@ -372,8 +375,8 @@ public class HBaseConnection {
         return fd;
     }
 
-    public static void deleteTable(Connection conn, String tableName) throws IOException {
-        Admin hbase = conn.getAdmin();
+    public static void deleteTable(HConnection conn, String tableName) throws IOException {
+        HBaseAdmin hbase = new HBaseAdmin(conn);
 
         try {
             if (!tableExists(conn, tableName)) {

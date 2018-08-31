@@ -44,8 +44,8 @@ import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.TableNotFoundException;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.KylinVersion;
@@ -90,11 +90,11 @@ public class DeployCoprocessorCLI {
         KylinConfig kylinConfig = KylinConfig.getInstanceFromEnv();
         Configuration hconf = HBaseConnection.getCurrentHBaseConfiguration();
         FileSystem fileSystem = FileSystem.get(hconf);
-        Connection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
-        Admin hbaseAdmin = null;
+        HConnection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
+        HBaseAdmin hbaseAdmin = null;
 
         try {
-            hbaseAdmin = conn.getAdmin();
+            hbaseAdmin = new HBaseAdmin(conn);
             String localCoprocessorJar;
             int curIdx = 0;
             if ("default".equals(args[curIdx++])) {
@@ -169,7 +169,7 @@ public class DeployCoprocessorCLI {
         System.exit(0);
     }
 
-    private static List<String> filterByGitCommit(Admin hbaseAdmin, List<String> tableNames) throws IOException {
+    private static List<String> filterByGitCommit(HBaseAdmin hbaseAdmin, List<String> tableNames) throws IOException {
         List<String> result = Lists.newLinkedList();
         List<String> filteredList = Lists.newLinkedList();
 
@@ -277,7 +277,7 @@ public class DeployCoprocessorCLI {
         desc.addCoprocessor(CubeEndpointClass, hdfsCoprocessorJar, 1001, null);
     }
 
-    public static boolean resetCoprocessor(String tableName, Admin hbaseAdmin, Path hdfsCoprocessorJar) throws IOException {
+    public static boolean resetCoprocessor(String tableName, HBaseAdmin hbaseAdmin, Path hdfsCoprocessorJar) throws IOException {
         KylinConfig kylinConfig = KylinConfig.getInstanceFromEnv();
         HTableDescriptor desc = hbaseAdmin.getTableDescriptor(TableName.valueOf(tableName));
 
@@ -326,7 +326,7 @@ public class DeployCoprocessorCLI {
         return true;
     }
 
-    private static Pair<List<String>, List<String>> resetCoprocessorOnHTables(final Admin hbaseAdmin, final Path hdfsCoprocessorJar, List<String> tableNames) throws IOException {
+    private static Pair<List<String>, List<String>> resetCoprocessorOnHTables(final HBaseAdmin hbaseAdmin, final Path hdfsCoprocessorJar, List<String> tableNames) throws IOException {
         List<String> processedTables = Collections.synchronizedList(new ArrayList<String>());
         List<String> failedTables = Collections.synchronizedList(new ArrayList<String>());
 
@@ -354,13 +354,13 @@ public class DeployCoprocessorCLI {
 
     private static class ResetCoprocessorWorker implements Runnable {
         private final CountDownLatch countDownLatch;
-        private final Admin hbaseAdmin;
+        private final HBaseAdmin hbaseAdmin;
         private final Path hdfsCoprocessorJar;
         private final String tableName;
         private final List<String> processedTables;
         private final List<String> failedTables;
 
-        public ResetCoprocessorWorker(CountDownLatch countDownLatch, Admin hbaseAdmin, Path hdfsCoprocessorJar, String tableName, List<String> processedTables, List<String> failedTables) {
+        public ResetCoprocessorWorker(CountDownLatch countDownLatch, HBaseAdmin hbaseAdmin, Path hdfsCoprocessorJar, String tableName, List<String> processedTables, List<String> failedTables) {
 
             this.countDownLatch = countDownLatch;
             this.hbaseAdmin = hbaseAdmin;
@@ -487,7 +487,7 @@ public class DeployCoprocessorCLI {
         return coprocessorDir;
     }
 
-    private static Set<String> getCoprocessorJarPaths(Admin hbaseAdmin, List<String> tableNames) throws IOException {
+    private static Set<String> getCoprocessorJarPaths(HBaseAdmin hbaseAdmin, List<String> tableNames) throws IOException {
         HashSet<String> result = new HashSet<String>();
 
         for (String tableName : tableNames) {

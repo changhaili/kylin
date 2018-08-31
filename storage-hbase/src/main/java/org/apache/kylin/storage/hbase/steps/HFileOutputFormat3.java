@@ -25,11 +25,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.hbase.HRegionInfo;
+import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.hbase.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -44,8 +48,7 @@ import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.classification.InterfaceStability;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.RegionLocator;
-import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.io.compress.Compression;
 import org.apache.hadoop.hbase.io.compress.Compression.Algorithm;
@@ -129,7 +132,7 @@ public class HFileOutputFormat3
             throws IOException, InterruptedException {
 
         // Get the path of the temporary output file
-        final Path outputdir = ((FileOutputCommitter)committer).getWorkPath();
+        final Path outputdir = ((FileOutputCommitter) committer).getWorkPath();
         final Configuration conf = context.getConfiguration();
         LOG.debug("Task output path: " + outputdir);
         final FileSystem fs = outputdir.getFileSystem(conf);
@@ -161,10 +164,10 @@ public class HFileOutputFormat3
 
         return new RecordWriter<ImmutableBytesWritable, V>() {
             // Map of families to writers and how much has been output on the writer.
-            private final Map<byte [], WriterLength> writers =
-                    new TreeMap<byte [], WriterLength>(Bytes.BYTES_COMPARATOR);
-            private byte [] previousRow = HConstants.EMPTY_BYTE_ARRAY;
-            private final byte [] now = Bytes.toBytes(System.currentTimeMillis());
+            private final Map<byte[], WriterLength> writers =
+                    new TreeMap<byte[], WriterLength>(Bytes.BYTES_COMPARATOR);
+            private byte[] previousRow = HConstants.EMPTY_BYTE_ARRAY;
+            private final byte[] now = Bytes.toBytes(System.currentTimeMillis());
             private boolean rollRequested = false;
 
             @Override
@@ -175,9 +178,9 @@ public class HFileOutputFormat3
                     rollWriters();
                     return;
                 }
-                byte [] rowKey = CellUtil.cloneRow(kv);
+                byte[] rowKey = CellUtil.cloneRow(kv);
                 long length = kv.getLength();
-                byte [] family = CellUtil.cloneFamily(kv);
+                byte[] family = CellUtil.cloneFamily(kv);
                 WriterLength wl = this.writers.get(family);
                 if (wl == null) {
                     fs.mkdirs(new Path(outputdir, Bytes.toString(family)));
@@ -201,7 +204,7 @@ public class HFileOutputFormat3
                 for (WriterLength wl : this.writers.values()) {
                     if (wl.writer != null) {
                         LOG.info("Writer=" + wl.writer.getPath() +
-                                ((wl.written == 0)? "": ", wrote=" + wl.written));
+                                ((wl.written == 0) ? "" : ", wrote=" + wl.written));
                         close(wl.writer);
                     }
                     wl.writer = null;
@@ -210,8 +213,8 @@ public class HFileOutputFormat3
                 this.rollRequested = false;
             }
 
-            @edu.umd.cs.findbugs.annotations.SuppressWarnings(value="BX_UNBOXING_IMMEDIATELY_REBOXED",
-                    justification="Not important")
+            @edu.umd.cs.findbugs.annotations.SuppressWarnings(value = "BX_UNBOXING_IMMEDIATELY_REBOXED",
+                    justification = "Not important")
             private WriterLength getNewWriter(byte[] family, Configuration conf)
                     throws IOException {
                 WriterLength wl = new WriterLength();
@@ -262,7 +265,7 @@ public class HFileOutputFormat3
             @Override
             public void close(TaskAttemptContext c)
                     throws IOException, InterruptedException {
-                for (WriterLength wl: this.writers.values()) {
+                for (WriterLength wl : this.writers.values()) {
                     close(wl.writer);
                 }
             }
@@ -281,12 +284,14 @@ public class HFileOutputFormat3
      * Return the start keys of all of the regions in this table,
      * as a list of ImmutableBytesWritable.
      */
-    private static List<ImmutableBytesWritable> getRegionStartKeys(RegionLocator table)
+    private static List<ImmutableBytesWritable> getRegionStartKeys(Set<HRegionInfo> regionInfos)
             throws IOException {
-        byte[][] byteKeys = table.getStartKeys();
+
         ArrayList<ImmutableBytesWritable> ret =
-                new ArrayList<ImmutableBytesWritable>(byteKeys.length);
-        for (byte[] byteKey : byteKeys) {
+                new ArrayList<ImmutableBytesWritable>(regionInfos.size());
+
+        for (HRegionInfo regionInfo : regionInfos) {
+            byte[] byteKey = regionInfo.getStartKey();
             ret.add(new ImmutableBytesWritable(byteKey));
         }
         return ret;
@@ -338,12 +343,12 @@ public class HFileOutputFormat3
      * Configure a MapReduce Job to perform an incremental load into the given
      * table. This
      * <ul>
-     *   <li>Inspects the table to configure a total order partitioner</li>
-     *   <li>Uploads the partitions file to the cluster and adds it to the DistributedCache</li>
-     *   <li>Sets the number of reduce tasks to match the current number of regions</li>
-     *   <li>Sets the output key/value class to match HFileOutputFormat2's requirements</li>
-     *   <li>Sets the reducer up to perform the appropriate sorting (either KeyValueSortReducer or
-     *     PutSortReducer)</li>
+     * <li>Inspects the table to configure a total order partitioner</li>
+     * <li>Uploads the partitions file to the cluster and adds it to the DistributedCache</li>
+     * <li>Sets the number of reduce tasks to match the current number of regions</li>
+     * <li>Sets the output key/value class to match HFileOutputFormat2's requirements</li>
+     * <li>Sets the reducer up to perform the appropriate sorting (either KeyValueSortReducer or
+     * PutSortReducer)</li>
      * </ul>
      * The user should be sure to set the map output value class to either KeyValue or Put before
      * running this function.
@@ -353,49 +358,49 @@ public class HFileOutputFormat3
     @Deprecated
     public static void configureIncrementalLoad(Job job, HTable table)
             throws IOException {
-        configureIncrementalLoad(job, table.getTableDescriptor(), table.getRegionLocator());
+        configureIncrementalLoad(job, table.getTableDescriptor(), table.getRegionLocations().keySet());
     }
 
     /**
      * Configure a MapReduce Job to perform an incremental load into the given
      * table. This
      * <ul>
-     *   <li>Inspects the table to configure a total order partitioner</li>
-     *   <li>Uploads the partitions file to the cluster and adds it to the DistributedCache</li>
-     *   <li>Sets the number of reduce tasks to match the current number of regions</li>
-     *   <li>Sets the output key/value class to match HFileOutputFormat2's requirements</li>
-     *   <li>Sets the reducer up to perform the appropriate sorting (either KeyValueSortReducer or
-     *     PutSortReducer)</li>
+     * <li>Inspects the table to configure a total order partitioner</li>
+     * <li>Uploads the partitions file to the cluster and adds it to the DistributedCache</li>
+     * <li>Sets the number of reduce tasks to match the current number of regions</li>
+     * <li>Sets the output key/value class to match HFileOutputFormat2's requirements</li>
+     * <li>Sets the reducer up to perform the appropriate sorting (either KeyValueSortReducer or
+     * PutSortReducer)</li>
      * </ul>
      * The user should be sure to set the map output value class to either KeyValue or Put before
      * running this function.
      */
-    public static void configureIncrementalLoad(Job job, Table table, RegionLocator regionLocator)
+    public static void configureIncrementalLoad(Job job, HTableInterface table, Set<HRegionInfo> regionInfos)
             throws IOException {
-        configureIncrementalLoad(job, table.getTableDescriptor(), regionLocator);
+        configureIncrementalLoad(job, table.getTableDescriptor(), regionInfos);
     }
 
     /**
      * Configure a MapReduce Job to perform an incremental load into the given
      * table. This
      * <ul>
-     *   <li>Inspects the table to configure a total order partitioner</li>
-     *   <li>Uploads the partitions file to the cluster and adds it to the DistributedCache</li>
-     *   <li>Sets the number of reduce tasks to match the current number of regions</li>
-     *   <li>Sets the output key/value class to match HFileOutputFormat2's requirements</li>
-     *   <li>Sets the reducer up to perform the appropriate sorting (either KeyValueSortReducer or
-     *     PutSortReducer)</li>
+     * <li>Inspects the table to configure a total order partitioner</li>
+     * <li>Uploads the partitions file to the cluster and adds it to the DistributedCache</li>
+     * <li>Sets the number of reduce tasks to match the current number of regions</li>
+     * <li>Sets the output key/value class to match HFileOutputFormat2's requirements</li>
+     * <li>Sets the reducer up to perform the appropriate sorting (either KeyValueSortReducer or
+     * PutSortReducer)</li>
      * </ul>
      * The user should be sure to set the map output value class to either KeyValue or Put before
      * running this function.
      */
     public static void configureIncrementalLoad(Job job, HTableDescriptor tableDescriptor,
-                                                RegionLocator regionLocator) throws IOException {
-        configureIncrementalLoad(job, tableDescriptor, regionLocator, HFileOutputFormat3.class);
+                                                Set<HRegionInfo> regionInfos) throws IOException {
+        configureIncrementalLoad(job, tableDescriptor, regionInfos, HFileOutputFormat3.class);
     }
 
     static void configureIncrementalLoad(Job job, HTableDescriptor tableDescriptor,
-                                         RegionLocator regionLocator, Class<? extends OutputFormat<?, ?>> cls) throws IOException,
+                                         Set<HRegionInfo> regionInfos, Class<? extends OutputFormat<?, ?>> cls) throws IOException,
             UnsupportedEncodingException {
         Configuration conf = job.getConfiguration();
         job.setOutputKeyClass(ImmutableBytesWritable.class);
@@ -421,7 +426,7 @@ public class HFileOutputFormat3
 
         // Use table's region boundaries for TOP split points.
         LOG.info("Looking up current regions for table " + tableDescriptor.getTableName());
-        List<ImmutableBytesWritable> startKeys = getRegionStartKeys(regionLocator);
+        List<ImmutableBytesWritable> startKeys = getRegionStartKeys(regionInfos);
         LOG.info("Configuring " + startKeys.size() + " reduce partitions " +
                 "to match current region count");
         job.setNumReduceTasks(startKeys.size());
@@ -435,10 +440,10 @@ public class HFileOutputFormat3
 
         TableMapReduceUtil.addDependencyJars(job);
         TableMapReduceUtil.initCredentials(job);
-        LOG.info("Incremental table " + regionLocator.getName() + " output configured.");
+        LOG.info("Incremental table " + tableDescriptor.getTableName() + " output configured.");
     }
 
-    public static void configureIncrementalLoadMap(Job job, Table table) throws IOException {
+    public static void configureIncrementalLoadMap(Job job, HTableInterface table) throws IOException {
         Configuration conf = job.getConfiguration();
 
         job.setOutputKeyClass(ImmutableBytesWritable.class);
@@ -524,7 +529,7 @@ public class HFileOutputFormat3
      *
      * @param conf to read the serialized values from
      * @return a map from column family to HFileDataBlockEncoder for the
-     *         configured data block type for the family
+     * configured data block type for the family
      */
     @VisibleForTesting
     static Map<byte[], DataBlockEncoding> createFamilyDataBlockEncodingMap(
@@ -543,7 +548,7 @@ public class HFileOutputFormat3
     /**
      * Run inside the task to deserialize column family to given conf value map.
      *
-     * @param conf to read the serialized values from
+     * @param conf     to read the serialized values from
      * @param confName conf key to read from the configuration
      * @return a map of column family to the given configuration value
      */
@@ -576,7 +581,7 @@ public class HFileOutputFormat3
         Configuration conf = job.getConfiguration();
         // create the partitions file
         FileSystem fs = FileSystem.get(conf);
-        Path partitionsPath = new Path(conf.get("hbase.fs.tmp.dir"), "partitions_" + RandomUtil.randomUUID());
+        Path partitionsPath = new Path(conf.get("hbase.fs.tmp.dir"), "partitions_" + UUID.randomUUID());
         fs.makeQualified(partitionsPath);
         writePartitions(conf, partitionsPath, splitPoints);
         fs.deleteOnExit(partitionsPath);
@@ -590,18 +595,17 @@ public class HFileOutputFormat3
      * Serialize column family to compression algorithm map to configuration.
      * Invoked while configuring the MR job for incremental load.
      *
-     * @param table to read the properties from
-     * @param conf to persist serialized values into
-     * @throws IOException
-     *           on failure to read column family descriptors
+     * @param tableDescriptor to read the properties from
+     * @param conf            to persist serialized values into
+     * @throws IOException on failure to read column family descriptors
      */
     @edu.umd.cs.findbugs.annotations.SuppressWarnings(
-            value="RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
+            value = "RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE")
     @VisibleForTesting
     static void configureCompression(Configuration conf, HTableDescriptor tableDescriptor)
             throws UnsupportedEncodingException {
         StringBuilder compressionConfigValue = new StringBuilder();
-        if(tableDescriptor == null){
+        if (tableDescriptor == null) {
             // could happen with mock table instance
             return;
         }
@@ -624,11 +628,10 @@ public class HFileOutputFormat3
     /**
      * Serialize column family to block size map to configuration.
      * Invoked while configuring the MR job for incremental load.
-     * @param tableDescriptor to read the properties from
-     * @param conf to persist serialized values into
      *
-     * @throws IOException
-     *           on failure to read column family descriptors
+     * @param tableDescriptor to read the properties from
+     * @param conf            to persist serialized values into
+     * @throws IOException on failure to read column family descriptors
      */
     @VisibleForTesting
     static void configureBlockSize(HTableDescriptor tableDescriptor, Configuration conf)
@@ -657,11 +660,10 @@ public class HFileOutputFormat3
     /**
      * Serialize column family to bloom type map to configuration.
      * Invoked while configuring the MR job for incremental load.
-     * @param tableDescriptor to read the properties from
-     * @param conf to persist serialized values into
      *
-     * @throws IOException
-     *           on failure to read column family descriptors
+     * @param tableDescriptor to read the properties from
+     * @param conf            to persist serialized values into
+     * @throws IOException on failure to read column family descriptors
      */
     @VisibleForTesting
     static void configureBloomType(HTableDescriptor tableDescriptor, Configuration conf)
@@ -693,10 +695,9 @@ public class HFileOutputFormat3
      * Serialize column family to data block encoding map to configuration.
      * Invoked while configuring the MR job for incremental load.
      *
-     * @param table to read the properties from
-     * @param conf to persist serialized values into
-     * @throws IOException
-     *           on failure to read column family descriptors
+     * @param tableDescriptor to read the properties from
+     * @param conf            to persist serialized values into
+     * @throws IOException on failure to read column family descriptors
      */
     @VisibleForTesting
     static void configureDataBlockEncoding(HTableDescriptor tableDescriptor,

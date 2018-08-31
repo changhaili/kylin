@@ -41,8 +41,8 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.AbstractApplication;
 import org.apache.kylin.common.util.CliCommandExecutor;
@@ -82,8 +82,8 @@ public class StorageCleanupJob extends AbstractApplication {
         KylinConfig kylinConfig = KylinConfig.getInstanceFromEnv();
         CubeManager cubeMgr = CubeManager.getInstance(kylinConfig);
         // get all kylin hbase tables
-        Connection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
-        Admin hbaseAdmin = conn.getAdmin();
+        HConnection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
+        HBaseAdmin hbaseAdmin = new HBaseAdmin(conn);
         String tableNamePrefix = kylinConfig.getHBaseTableNamePrefix();
         HTableDescriptor[] tableDescriptors = hbaseAdmin.listTables(tableNamePrefix + ".*");
         List<String> allTablesNeedToBeDropped = new ArrayList<String>();
@@ -159,10 +159,10 @@ public class StorageCleanupJob extends AbstractApplication {
     }
 
     class DeleteHTableRunnable implements Callable {
-        Admin hbaseAdmin;
+        HBaseAdmin hbaseAdmin;
         String htableName;
 
-        DeleteHTableRunnable(Admin hbaseAdmin, String htableName) {
+        DeleteHTableRunnable(HBaseAdmin hbaseAdmin, String htableName) {
             this.hbaseAdmin = hbaseAdmin;
             this.htableName = htableName;
         }

@@ -28,8 +28,8 @@ import java.util.zip.DataFormatException;
 
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.HConnection;
+import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.coprocessor.Batch;
 import org.apache.hadoop.hbase.ipc.BlockingRpcCallback;
 import org.apache.hadoop.hbase.ipc.RegionCoprocessorRpcChannel;
@@ -130,7 +130,7 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
         final ImmutableBitSet selectedColBlocks = scanRequest.getSelectedColBlocks().set(0);
 
         // globally shared connection, does not require close
-        final Connection conn = HBaseConnection.get(cubeSeg.getCubeInstance().getConfig().getStorageUrl());
+        final HConnection conn = HBaseConnection.get(cubeSeg.getCubeInstance().getConfig().getStorageUrl());
 
         final List<IntList> hbaseColumnsToGTIntList = Lists.newArrayList();
         List<List<Integer>> hbaseColumnsToGT = getHBaseColumnsGTMapping(selectedColBlocks);
@@ -193,13 +193,13 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
     }
 
     private void runEPRange(final QueryContext queryContext, final String logHeader, final boolean compressionResult,
-            final CubeVisitProtos.CubeVisitRequest request, final Connection conn, byte[] startKey, byte[] endKey,
+            final CubeVisitProtos.CubeVisitRequest request, final HConnection conn, byte[] startKey, byte[] endKey,
             final ExpectedSizeIterator epResultItr) {
 
         final String queryId = queryContext.getQueryId();
 
         try {
-            final Table table = conn.getTable(TableName.valueOf(cubeSeg.getStorageLocationIdentifier()),
+            final HTableInterface table = conn.getTable(TableName.valueOf(cubeSeg.getStorageLocationIdentifier()),
                     HBaseConnection.getCoprocessorPool());
 
             table.coprocessorService(CubeVisitService.class, startKey, endKey, //
@@ -249,16 +249,16 @@ public class CubeHBaseEndpointRPC extends CubeHBaseRPC {
                         }
 
                         private HRegionLocation getStartRegionLocation(CubeVisitProtos.CubeVisitService rowsService) {
-                            try {
-                                CubeVisitProtos.CubeVisitService.Stub rowsServiceStub = (CubeVisitProtos.CubeVisitService.Stub) rowsService;
-                                RegionCoprocessorRpcChannel channel = (RegionCoprocessorRpcChannel) rowsServiceStub
-                                        .getChannel();
-                                byte[] row = (byte[]) channelRowField.get(channel);
-                                return conn.getRegionLocator(table.getName()).getRegionLocation(row, false);
-                            } catch (Throwable throwable) {
-                                logger.warn("error when get region server name", throwable);
-                            }
-                            return null;
+                                try {
+                                    CubeVisitProtos.CubeVisitService.Stub rowsServiceStub = (CubeVisitProtos.CubeVisitService.Stub) rowsService;
+                                    RegionCoprocessorRpcChannel channel = (RegionCoprocessorRpcChannel) rowsServiceStub
+                                            .getChannel();
+                                    byte[] row = (byte[]) channelRowField.get(channel);
+                                    return conn.getRegionLocation(table.getName(), row, false);
+                                } catch (Throwable throwable) {
+                                    logger.warn("error when get region server name", throwable);
+                                }
+                                return null;
                         }
                     }, new Batch.Callback<CubeVisitResponse>() {
                         @Override

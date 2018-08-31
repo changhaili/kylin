@@ -26,8 +26,8 @@ import java.util.List;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.job.exception.ExecuteException;
 import org.apache.kylin.job.execution.AbstractExecutable;
@@ -69,10 +69,10 @@ public class MergeGCStep extends AbstractExecutable {
         List<String> oldTables = getOldHTables();
         if (oldTables != null && oldTables.size() > 0) {
             String metadataUrlPrefix = KylinConfig.getInstanceFromEnv().getMetadataUrlPrefix();
-            Admin admin = null;
+            HBaseAdmin admin = null;
             try {
-                Connection conn = HBaseConnection.get(KylinConfig.getInstanceFromEnv().getStorageUrl());
-                admin = conn.getAdmin();
+                HConnection conn = HBaseConnection.get(KylinConfig.getInstanceFromEnv().getStorageUrl());
+                admin = new HBaseAdmin(conn);
 
                 for (String table : oldTables) {
                     if (admin.tableExists(TableName.valueOf(table))) {

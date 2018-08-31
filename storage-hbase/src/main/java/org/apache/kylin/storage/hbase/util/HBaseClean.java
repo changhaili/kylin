@@ -26,8 +26,8 @@ import org.apache.commons.cli.OptionBuilder;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.AbstractApplication;
 import org.apache.kylin.common.util.OptionsHelper;
@@ -58,8 +58,8 @@ public class HBaseClean extends AbstractApplication {
         try {
             // get all kylin hbase tables
             KylinConfig kylinConfig = KylinConfig.getInstanceFromEnv();
-            Connection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
-            Admin hbaseAdmin = conn.getAdmin();
+            HConnection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
+            HBaseAdmin hbaseAdmin = new HBaseAdmin(conn);
             String tableNamePrefix = kylinConfig.getHBaseTableNamePrefix();
             HTableDescriptor[] tableDescriptors = hbaseAdmin.listTables(tableNamePrefix + ".*");
             List<String> allTablesNeedToBeDropped = Lists.newArrayList();

@@ -28,11 +28,11 @@ import java.util.NavigableMap;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.StorageURL;
 import org.apache.kylin.common.persistence.ResourceStore;
@@ -168,7 +168,7 @@ public class AclTableMigrationTool {
 
     private boolean checkTableExist(String tableName) throws IOException {
         StorageURL metadataUrl = KylinConfig.getInstanceFromEnv().getMetadataUrl();
-        try (Admin admin = HBaseConnection.get(metadataUrl).getAdmin()) {
+        try (HBaseAdmin admin = new HBaseAdmin(HBaseConnection.get(metadataUrl))) {
             return admin.tableExists(TableName.valueOf(tableName));
         }
     }
@@ -180,7 +180,7 @@ public class AclTableMigrationTool {
     private void convertToResourceStore(KylinConfig kylinConfig, String tableName, ResourceStore store,
             ResultConverter converter) throws IOException {
 
-        Table table = null;
+        HTableInterface table = null;
         ResultScanner rs = null;
         Scan scan = new Scan();
         try {
