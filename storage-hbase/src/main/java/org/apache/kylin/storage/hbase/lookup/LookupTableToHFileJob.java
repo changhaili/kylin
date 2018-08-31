@@ -29,10 +29,9 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.mapreduce.HFileOutputFormat2;
 import org.apache.hadoop.hbase.regionserver.DisabledRegionSplitPolicy;
 import org.apache.hadoop.hdfs.DFSConfigKeys;
 import org.apache.hadoop.mapreduce.Job;
@@ -131,11 +130,12 @@ public class LookupTableToHFileJob extends AbstractHadoopJob {
             // add metadata to distributed cache
             attachCubeMetadata(cube, job.getConfiguration());
 
-            Connection conn = getHBaseConnection(kylinConfig);
+            HConnection conn = getHBaseConnection(kylinConfig);
             HTable htable = (HTable) conn.getTable(TableName.valueOf(hTableNameAndShard.getFirst()));
 
             // Automatic config !
-            HFileOutputFormat2.configureIncrementalLoad(job, htable, htable.getRegionLocator());
+            // TODO
+            //HFileOutputFormat2.configureIncrementalLoad(job, htable, htable.get.getRegionLocator());
 
             job.setReducerClass(KVSortReducerWithDupKeyCheck.class);
 
@@ -163,8 +163,8 @@ public class LookupTableToHFileJob extends AbstractHadoopJob {
         extSnapshotInfoManager.removeSnapshot(tableName, lookupSnapshotID);
         String hTableName = snapshotInfo.getStorageLocationIdentifier();
         logger.info("remove related HBase table:{} for snapshot:{}", hTableName, lookupSnapshotID);
-        Connection conn = getHBaseConnection(kylinConfig);
-        Admin admin = conn.getAdmin();
+        HConnection conn = getHBaseConnection(kylinConfig);
+        HBaseAdmin admin = new HBaseAdmin(conn);
         admin.deleteTable(TableName.valueOf(hTableName));
     }
 
@@ -202,8 +202,8 @@ public class LookupTableToHFileJob extends AbstractHadoopJob {
             KylinConfig kylinConfig) throws IOException {
         TableSignature signature = sourceTable.getSignature();
         int shardNum = calculateShardNum(kylinConfig, signature.getSize());
-        Connection conn = getHBaseConnection(kylinConfig);
-        Admin admin = conn.getAdmin();
+        HConnection conn = getHBaseConnection(kylinConfig);
+        HBaseAdmin admin = new HBaseAdmin(conn);
         String hTableName = genHTableName(kylinConfig, admin, sourceTableName);
 
         TableName tableName = TableName.valueOf(hTableName);
@@ -254,7 +254,7 @@ public class LookupTableToHFileJob extends AbstractHadoopJob {
                 shardNum, ExtTableSnapshotInfo.STORAGE_TYPE_HBASE, hTableName);
     }
 
-    private String genHTableName(KylinConfig kylinConfig, Admin admin, String tableName) throws IOException {
+    private String genHTableName(KylinConfig kylinConfig, HBaseAdmin admin, String tableName) throws IOException {
         String namePrefix = kylinConfig.getHBaseTableNamePrefix()
                 + IRealizationConstants.LookupHbaseStorageLocationPrefix + tableName + "_";
         String namespace = kylinConfig.getHBaseStorageNameSpace();
@@ -275,11 +275,11 @@ public class LookupTableToHFileJob extends AbstractHadoopJob {
         return hTableName;
     }
 
-    private boolean hTableExists(Admin admin, String hTableName) throws IOException {
+    private boolean hTableExists(HBaseAdmin admin, String hTableName) throws IOException {
         return admin.tableExists(TableName.valueOf(hTableName));
     }
 
-    private Connection getHBaseConnection(KylinConfig kylinConfig) throws IOException {
+    private HConnection getHBaseConnection(KylinConfig kylinConfig) throws IOException {
         return HBaseConnection.get(kylinConfig.getStorageUrl());
     }
 

@@ -23,12 +23,12 @@ import java.util.Iterator;
 import java.util.NavigableMap;
 
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.client.Table;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.Array;
 import org.apache.kylin.dict.lookup.ILookupTable;
@@ -46,7 +46,7 @@ public class HBaseLookupTable implements ILookupTable{
     protected static final Logger logger = LoggerFactory.getLogger(HBaseLookupTable.class);
 
     private TableName lookupTableName;
-    private Table table;
+    private HTableInterface table;
 
     private HBaseLookupRowEncoder encoder;
 
@@ -54,7 +54,7 @@ public class HBaseLookupTable implements ILookupTable{
         String tableName = extTableSnapshot.getStorageLocationIdentifier();
         this.lookupTableName = TableName.valueOf(tableName);
         KylinConfig kylinConfig = KylinConfig.getInstanceFromEnv();
-        Connection connection = HBaseConnection.get(kylinConfig.getStorageUrl());
+        HConnection connection = HBaseConnection.get(kylinConfig.getStorageUrl());
         try {
             table = connection.getTable(lookupTableName);
         } catch (IOException e) {
@@ -94,7 +94,7 @@ public class HBaseLookupTable implements ILookupTable{
         private Iterator<Result> scannerIterator;
         private long counter;
 
-        public HBaseScanBasedIterator(Table table) {
+        public HBaseScanBasedIterator(HTableInterface table) {
             try {
                 Scan scan = new Scan();
                 scan.setCaching(1000);

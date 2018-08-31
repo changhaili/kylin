@@ -31,8 +31,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
+import org.apache.hadoop.hbase.client.HConnection;
 import org.apache.kylin.common.KylinConfig;
 import org.apache.kylin.common.util.AbstractApplication;
 import org.apache.kylin.common.util.OptionsHelper;
@@ -57,9 +57,9 @@ public class OrphanHBaseCleanJob extends AbstractApplication {
 
     private void cleanUnusedHBaseTables(Configuration conf) throws IOException {
         KylinConfig kylinConfig = KylinConfig.getInstanceFromEnv();
-        Connection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
+        HConnection conn = HBaseConnection.get(kylinConfig.getStorageUrl());
         // get all kylin hbase tables
-        Admin hbaseAdmin = conn.getAdmin();
+        HBaseAdmin hbaseAdmin = new HBaseAdmin(conn);
         String tableNamePrefix = kylinConfig.getHBaseTableNamePrefix();
         HTableDescriptor[] tableDescriptors = hbaseAdmin.listTables(tableNamePrefix + ".*");
         List<String> allTablesNeedToBeDropped = new ArrayList<String>();
