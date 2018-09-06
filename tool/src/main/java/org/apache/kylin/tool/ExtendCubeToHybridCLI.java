@@ -249,6 +249,8 @@ public class ExtendCubeToHybridCLI {
                     aclHtable.put(put);
                 }
             }
+
+            aclHtable.flushCommits();
         } finally {
             IOUtils.closeQuietly(aclHtable);
         }

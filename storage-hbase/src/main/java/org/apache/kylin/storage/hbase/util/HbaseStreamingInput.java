@@ -140,6 +140,7 @@ public class HbaseStreamingInput {
                 buffer.add(put);
             }
             table.put(buffer);
+            table.flushCommits();
             table.close();
             conn.close();
             long endTime = System.currentTimeMillis();

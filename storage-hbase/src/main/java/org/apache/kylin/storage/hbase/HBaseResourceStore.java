@@ -303,6 +303,7 @@ public class HBaseResourceStore extends ResourceStore {
             Put put = buildPut(resPath, ts, row, bout.toByteArray(), table);
 
             table.put(put);
+            table.flushCommits();
         } finally {
             IOUtils.closeQuietly(table);
         }
@@ -326,6 +327,8 @@ public class HBaseResourceStore extends ResourceStore {
                         "Overwriting conflict " + resPath + ", expect old TS " + oldTS + ", but it is " + real);
             }
 
+            table.flushCommits();
+
             return newTS;
         } finally {
             IOUtils.closeQuietly(table);
@@ -347,6 +350,7 @@ public class HBaseResourceStore extends ResourceStore {
 
             Delete del = new Delete(Bytes.toBytes(resPath));
             table.delete(del);
+            table.flushCommits();
 
             if (hdfsResourceExist) { // remove hdfs cell value
                 Path redirectPath = bigCellHDFSPath(resPath);

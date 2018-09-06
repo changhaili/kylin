@@ -461,6 +461,7 @@ public class CubeMigrationCLI {
                         Put put = new Put(Bytes.toBytes(cubeId));
                         put.add(family, column, value);
                         destAclHtable.put(put);
+                        destAclHtable.flushCommits();
                     }
                 }
             } finally {
@@ -534,6 +535,8 @@ public class CubeMigrationCLI {
 
                 destAclHtable.delete(new Delete(Bytes.toBytes(cubeId)));
                 destAclHtable.delete(new Delete(Bytes.toBytes(modelId)));
+
+                destAclHtable.flushCommits();
             } finally {
                 IOUtils.closeQuietly(destAclHtable);
             }

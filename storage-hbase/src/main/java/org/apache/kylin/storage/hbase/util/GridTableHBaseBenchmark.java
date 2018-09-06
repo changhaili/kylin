@@ -238,6 +238,8 @@ public class GridTableHBaseBenchmark {
                 nBytes += cell.length;
                 dot(i, N_ROWS);
             }
+
+            table.flushCommits();
             System.out.println();
             System.out.println("Written " + N_ROWS + " rows, " + nBytes + " bytes");
 
